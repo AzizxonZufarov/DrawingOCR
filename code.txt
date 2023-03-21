@@ -1,0 +1,57 @@
+Option Explicit
+
+Sub Tesseract_OCR()
+    Dim strCommand As String
+    Dim strImagePath As String
+    Dim strOcrResult As String
+    Dim ws As New WshShell
+    
+    Set ws = VBA.CreateObject("wscript.shell")
+    
+    strImagePath = GetImageFullPath()
+    
+    If Not IsEmpty(strImagePath) Then
+        strCommand = "cmd.exe /c tesseract " & strImagePath & " stdout -l rus+eng"
+        strOcrResult = ws.Exec(strCommand).StdOut.ReadAll
+        Range("A1").Value = ChangeTextCharset(strOcrResult, "utf-8", "Windows-1251")
+    End If
+End Sub
+
+Function GetImageFullPath() As String
+    Dim fd As Office.FileDialog
+    Dim strFile As String
+    
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    
+    With fd
+        .Filters.Clear
+        .Filters.Add "Images", "*.pdf, *.tif, *.png, *.jpg"
+        .Title = "Choose"
+        .AllowMultiSelect = False
+        If .Show = True Then
+            strFile = .SelectedItems(1)
+            GetImageFullPath = strFile
+        End If
+    End With
+End Function
+
+Function ChangeTextCharset(ByVal txt As String, ByVal DestCharset$, Optional ByVal SourceCharset As String) As String
+    If Trim(txt) = "" Then
+        ChangeTextCharset = ""
+    Else
+        On Error Resume Next: Err.Clear
+        'SourceCharset$ = "Windows-1251"
+        'DestCharset$ = "utf-8"
+        With CreateObject("ADODB.Stream")
+            .Type = 2
+            .Mode = 3
+            If Len(SourceCharset$) Then .Charset = SourceCharset$
+            .Open
+            .WriteText txt
+            .Position = 0
+            .Charset = DestCharset
+            ChangeTextCharset = .ReadText
+            .Close
+        End With
+    End If
+End Function
